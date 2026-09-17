@@ -1,7 +1,0 @@
-# Bank Transactions Dataset Description
-
-## Overview
-This folder contains the dataset used for training, evaluating, and testing the AI Financial Fraud Detection system (`bank_transactions_data_2.csv`). The dataset includes transactional records, temporal metadata, and textual logs designed to train multi-modal machine learning models, deep neural networks, and NLP text parsers.
-
----
-
