@@ -1,0 +1,57 @@
+
+import numpy as np
+import pandas as pd
+from pathlib import Path
+
+RAW_DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "transactions.csv"
+
+REQUIRED_COLUMNS = [
+    "transaction_id", "account_id", "timestamp", "category", "merchant", "amount",
+    "city", "state", "city_pop", "cust_lat", "cust_long", "merch_lat", "merch_long",
+    "job", "gender", "dob", "is_fraud",
+]
+
+
+def load_raw_data(path: Path = RAW_DATA_PATH) -> pd.DataFrame:
+    """Accept transaction data from the dataset (CSV)."""
+    df = pd.read_csv(path)
+    missing = set(REQUIRED_COLUMNS) - set(df.columns)
+    if missing:
+        raise ValueError(f"Dataset is missing required columns: {missing}")
+    return df
+
+
+def validate_and_clean(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate and preprocess transaction data."""
+    df = df.copy()
+    df = df.drop_duplicates(subset="transaction_id")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    df["dob"] = pd.to_datetime(df["dob"], errors="coerce")
+    df = df.dropna(subset=["timestamp", "amount", "is_fraud"])
+    df = df[df["amount"] > 0]
+    for col in ["category", "merchant", "city", "state", "job", "gender", "account_id"]:
+        df[col] = df[col].astype(str).str.strip()
+    df["is_fraud"] = df["is_fraud"].astype(int)
+
+    # Customer age at transaction time
+    df["age"] = ((df["timestamp"] - df["dob"]).dt.days / 365.25).round(1)
+    df["age"] = df["age"].fillna(df["age"].median())
+
+    # Distance (km, haversine) between the customer's home and the merchant
+    lat1, lon1 = np.radians(df["cust_lat"]), np.radians(df["cust_long"])
+    lat2, lon2 = np.radians(df["merch_lat"]), np.radians(df["merch_long"])
+    a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    df["distance_km"] = 6371 * 2 * np.arcsin(np.sqrt(a))
+
+    return df.sort_values("timestamp").reset_index(drop=True)
+
+
+def get_clean_dataset(path: Path = RAW_DATA_PATH) -> pd.DataFrame:
+    return validate_and_clean(load_raw_data(path))
+
+
+if __name__ == "__main__":
+    data = get_clean_dataset()
+    print(f"Loaded {len(data)} clean transactions across {data['account_id'].nunique()} accounts.")
+    print(f"Fraud rate: {data['is_fraud'].mean():.2%} ({data['is_fraud'].sum()} fraud transactions)")
+    print("Date range:", data["timestamp"].min(), "->", data["timestamp"].max())
