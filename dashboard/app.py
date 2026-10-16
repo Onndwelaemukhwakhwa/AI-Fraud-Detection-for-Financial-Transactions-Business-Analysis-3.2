@@ -1,13 +1,3 @@
-"""
-dashboard/app.py
-------------------
-Copy and paste this exact command into PowerShell:
-
-cd C:\Users\onndw\Downloads\ai-fraud-risk-scoring-engine2\repo
-python -m streamlit run .\dashboard\app.py
-
-"""
-
 import sys
 from pathlib import Path
 
